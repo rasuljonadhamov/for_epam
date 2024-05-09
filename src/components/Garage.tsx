@@ -1,10 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import API from "../Api/Api";
 import { renderCar } from "./RenderCar";
 import WinnerModal from "./WinnerModal.tsx";
 import "../index.css";
 
+interface Car {
+  id: number;
+  name: string;
+  color: string;
+  isEngineStarted: boolean;
+}
 
+interface WinCar {
+  id: number;
   velocity: string;
   distance: string;
 }
@@ -30,35 +38,9 @@ const carNames = [
   "Mercedes-Benz",
 ];
 
-
-interface Car {
-  id: number;
-  name: string;
-  color: string;
-  isEngineStarted?: boolean;
-  velocity?: string | number;
-  distance?: string | number;
-}
-
-interface WinCar {
-  id: number;
-  velocity?: string | number;
-  distance?: string | number;
-  color: string;
-  isEngineStarted?: boolean;
-  name?: string;
-  wins?: number;
-  time?: number;
-}
-
-interface DivElementStyle {
-  transform: string;
-  transition: string;
-}
-const carNames = ["B<W", "AUDI", "AAA"];
-
-const Garage = () => {
+const Garage: React.FC = () => {
   const [cars, setCars] = useState<Car[]>([]);
+  const carRef = useRef<HTMLDivElement>();
   const [newCarName, setNewCarName] = useState<string>("");
   const [newCarColor, setNewCarColor] = useState<string>("#000000");
   const [editCarId, setEditCarId] = useState<number | null>(null);
@@ -167,7 +149,7 @@ const Garage = () => {
     setEditCarColor("");
   };
 
-  const divElMumer = (isIndividualAnimation?: boolean): DivElementStyle => {
+  const divElMumer = (isIndividualAnimation?: boolean) => {
     const screenWidth = window.innerWidth;
     const translateDistance = isIndividualAnimation
       ? screenWidth * 0.7
@@ -201,20 +183,19 @@ const Garage = () => {
     try {
       const response = await API.startEngine(id);
 
-      if (!response) {
-        const prev = (prevCars: Car[]) =>
+      if (!response.success) {
+        const prev = (prevCars) =>
           prevCars.map((car) =>
             car.id === id ? { ...car, isEngineStarted: true } : car
           );
 
-        const winnerr = cars.find((car) => car.id === id);
-        const carName = winnerr?.name ?? "";
+        const winn = cars.filter((car) => car.id === id);
 
-        const car: WinCar = {
+        const car = {
           id: id,
-          distance: response?.distance,
-          velocity: response?.velocity,
-          name: carName,
+          distance: response.distance,
+          velocity: response.velocity,
+          name: winn[0].name,
         };
 
         const winnerToApi = { id: car.id, wins: 1, time: car.velocity };
@@ -227,7 +208,7 @@ const Garage = () => {
           setShowWinnerModal(true);
         }, Math.floor(Math.random() * 4000));
       } else {
-        console.error("Failed to start engine:", response);
+        console.error("Failed to start engine:", response.error);
       }
     } catch (error) {
       console.error("Error starting engine:", error);
@@ -238,7 +219,7 @@ const Garage = () => {
     try {
       setRaceAnimationInProgress(true);
 
-      const race: WinCar[] = await Promise.all(
+      const raceResults = await Promise.all(
         currentCars.map(async (car) => {
           const response = await API.startEngine(car.id);
           console.log(response);
@@ -248,7 +229,7 @@ const Garage = () => {
         })
       );
 
-      const validResults = race.filter(
+      const validResults = raceResults.filter(
         (result) =>
           result.velocity !== undefined && result.distance !== undefined
       );
@@ -286,8 +267,9 @@ const Garage = () => {
   useEffect(() => {
     if (winner) {
       const winnerr = cars.find((car) => car.id === winner.id);
-      const carName = winnerr?.name ?? "";
-      setWinnerName({ ...winner, name: carName });
+      console.log(winnerr?.name, "ii");
+
+      setWinnerName({ ...winner, name: winnerr?.name });
     }
   }, [showWinnerModal]);
 
@@ -340,7 +322,11 @@ const Garage = () => {
       </div>
       <div className="grid grid-cols-1 gap-4">
         {currentCars.map((car: Car) => (
-          <div key={car.id} className="border border-gray-300 rounded-md p-4">
+          <div
+            ref={carRef}
+            key={car.id}
+            className="border border-gray-300 rounded-md p-4"
+          >
             <div className="flex gap-4 items-center">
               <div className="flex flex-col gap-2 items-start justify-center mt-2">
                 <button
@@ -455,4 +441,5 @@ const Garage = () => {
     </div>
   );
 };
+
 export default Garage;
